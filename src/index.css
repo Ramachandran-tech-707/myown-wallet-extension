@@ -724,38 +724,66 @@ p { color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem; }
 
 /* ===== Chrome Extension Popup Fixes ===== */
 @media (max-width: 440px) {
-  html, body {
+  /* ── Lock the entire popup to viewport — no body scroll ── */
+  html {
     width: 380px;
     min-width: 380px;
     max-width: 380px;
-    min-height: 600px;
-    overflow-x: hidden;
+    height: 600px;
+    overflow: hidden;
     background-attachment: scroll;
   }
 
   body {
-    display: block;
+    width: 380px;
+    min-width: 380px;
+    max-width: 380px;
+    height: 600px;
+    overflow: hidden;          /* body itself NEVER scrolls */
+    display: flex;
+    flex-direction: column;
     align-items: unset;
     justify-content: unset;
   }
 
+  /* Shell fills the full 600px popup height — no scrolling at shell level */
   .app-shell {
     width: 380px;
     min-width: 380px;
     max-width: 380px;
+    height: 600px;
+    min-height: unset;
+    max-height: 600px;
     border-radius: 0;
     border-left: none;
     border-right: none;
     border-top: none;
-    min-height: 600px;
     box-shadow: none;
     animation: none;
+    overflow: hidden;          /* clips children, prevents shell scroll */
+    flex-shrink: 0;
   }
 
+  /* page-content fills remaining space and scrolls internally */
+  .page-content {
+    flex: 1;
+    overflow-y: auto;          /* ONLY this scrolls */
+    overflow-x: hidden;
+    animation: none;
+    padding: 0.875rem;
+    width: 100%;
+    min-height: 0;             /* allows flex shrink so bottom-nav stays visible */
+  }
+
+  /* page-centered (onboarding / unlock / forgot-pw) — internal scroll */
   .page-centered {
     width: 380px;
     min-width: 380px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     animation: none;
+    min-height: 0;
   }
 
   .page-content {
@@ -1382,9 +1410,14 @@ p { color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem; }
 }
 .activity-explorer-link a:hover { opacity: 1; }
 
-/* Extension popup — slim tab height */
+/* Extension popup — tab card fills remaining height (no fixed px) */
 @media (max-width: 440px) {
-  .tab-card { height: 310px; }
+  /* Dashboard page-content: don't add padding-bottom so tab-card can fill */
+  .tab-card {
+    height: auto;
+    flex: 1;
+    min-height: 0;
+  }
 }
 
 /* ===== Token Item ===== */
