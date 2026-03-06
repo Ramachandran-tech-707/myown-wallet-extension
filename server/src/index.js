@@ -29,13 +29,13 @@ app.use(cors({
     origin: (origin, cb) => {
         // Allow requests with no origin (mobile apps, curl, Postman)
         if (!origin) return cb(null, true);
-
+        
         // Allow any chrome-extension:// or moz-extension:// origin
-        // if (/^(chrome-extension|moz-extension):///.test(origin)) return cb(null, true);
+        if (/^(chrome-extension|moz-extension):\/\//.test(origin)) return cb(null, true);
 
         // Allow configured origins
         if (allowedOrigins.includes(origin)) return cb(null, true);
-            return cb(new Error("CORS: origin not allowed — " + origin));
+        return cb(new Error("CORS: origin not allowed — " + origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
