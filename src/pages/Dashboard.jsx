@@ -63,10 +63,18 @@ const getTxIcon = (label, failed) => {
 };
 
 // ── Network fetch helpers ────────────────────────────
-const fetchWithTimeout = (url, ms = 9000) => {
+const fetchWithTimeout = async (url, ms = 9000) => {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
-    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
+    try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(id);
+        return res;
+    } catch (err) {
+        clearTimeout(id);
+        // CORS errors show as "Failed to fetch" — rethrow so callers can silently catch
+        throw err;
+    }
 };
 
 // ── Activity fetch — key-aware rate limit logic ───────
@@ -201,20 +209,62 @@ const tryNextGateway = (currentSrc) => {
 };
 
 // ── ERC-20 fetch ──────────────────────────────────────
+// Tries Blockscout v2 → Blockscout v1 → Etherscan-compatible
+// All failures are silent (CORS from extension is expected on some endpoints)
 const fetchERC20 = async (address, networkKey) => {
     const apis = EXPLORER_APIS[networkKey];
-    if (!apis?.bs) return [];
-    const v2 = apis.bs.replace("/api", "/api/v2");
-    try {
-        const res = await fetchWithTimeout(`${v2}/addresses/${address}/tokens?type=ERC-20`);
-        const json = await res.json();
-        if (Array.isArray(json.items)) return json.items;
-    } catch { }
-    try {
-        const res = await fetchWithTimeout(`${apis.bs}?module=account&action=tokenlist&address=${address}`);
-        const json = await res.json();
-        if (json.status === "1" && Array.isArray(json.result)) return json.result;
-    } catch { }
+    if (!apis) return [];
+    const key = (import.meta.env.VITE_ETHERSCAN_KEY || "").trim();
+
+    // 1. Blockscout v2
+    if (apis.bs) {
+        try {
+            const v2 = apis.bs.replace("/api", "/api/v2");
+            const res = await fetchWithTimeout(`${v2}/addresses/${address}/tokens?type=ERC-20`);
+            const json = await res.json();
+            if (Array.isArray(json.items)) return json.items;
+        } catch { /* CORS or network — silent */ }
+    }
+
+    // 2. Blockscout v1 tokenlist
+    if (apis.bs) {
+        try {
+            const res = await fetchWithTimeout(`${apis.bs}?module=account&action=tokenlist&address=${address}`);
+            const json = await res.json();
+            if (json.status === "1" && Array.isArray(json.result)) return json.result;
+        } catch { /* silent */ }
+    }
+
+    // 3. Etherscan-compatible (has wider CORS support)
+    if (apis.es) {
+        try {
+            const kp = key ? `&apikey=${key}` : "";
+            const res = await fetchWithTimeout(`${apis.es}?module=account&action=tokentx&address=${address}&sort=desc&page=1&offset=100${kp}`);
+            const json = await res.json();
+            if (json.status === "1" && Array.isArray(json.result)) {
+                // Deduplicate by contract, keep latest balance appearance
+                const seen = new Map();
+                for (const tx of json.result) {
+                    if (!seen.has(tx.contractAddress)) {
+                        seen.set(tx.contractAddress, {
+                            token: {
+                                address: tx.contractAddress,
+                                address_hash: tx.contractAddress,
+                                name: tx.tokenName,
+                                symbol: tx.tokenSymbol,
+                                decimals: tx.tokenDecimal,
+                                type: "ERC-20",
+                            },
+                            value: "0", // balance unknown from tx list alone
+                            balance: "0",
+                        });
+                    }
+                }
+                return [...seen.values()];
+            }
+        } catch { /* silent */ }
+    }
+
     return [];
 };
 
@@ -267,7 +317,7 @@ const fetchNFTs = async (address, networkKey) => {
             }));
             console.log("[NFT] Owned tokens after dedup:", ownedTokens.length, ownedTokens);
         }
-    } catch (e) { console.warn("[NFT] tokennfttx failed:", e.message); }
+    } catch (e) { console.log("[NFT] tokennfttx failed:", e.message); }
 
     // Also try ERC-1155
     try {
@@ -293,7 +343,7 @@ const fetchNFTs = async (address, networkKey) => {
     } catch { }
 
     if (!ownedTokens.length) {
-        console.warn("[NFT] No owned tokens found via tokennfttx");
+        console.log("[NFT] No owned tokens found via tokennfttx");
         return [];
     }
 

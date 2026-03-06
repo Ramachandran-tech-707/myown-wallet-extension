@@ -1,4 +1,4 @@
-const { ethers } = await import('ethers')
+import { ethers } from "ethers";
 
 export const createNewWallet = async (password) => {
     const wallet = ethers.Wallet.createRandom();
@@ -30,4 +30,13 @@ export const validatePrivateKey = (key) => {
     } catch {
         return false;
     }
+};
+
+// Re-encrypt all wallets with a new password using their private keys
+// Used by "Forgot Password" — requires user to supply current private key(s)
+export const reEncryptWallet = async (privateKey, newPassword) => {
+    const key = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+    const wallet = new ethers.Wallet(key);
+    const encrypted = await wallet.encrypt(newPassword);
+    return { address: wallet.address, encryptedJson: encrypted };
 };

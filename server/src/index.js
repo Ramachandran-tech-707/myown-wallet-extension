@@ -20,11 +20,30 @@ const PORT = process.env.PORT || 5000;
 
 // ── Security Middleware ───────────────────────────────
 app.use(helmet());
+// Allow web origins + any chrome-extension origin
+const allowedOrigins = [
+    ...(process.env.CLIENT_ORIGIN?.split(",") || ["http://localhost:5173"]),
+];
+
 app.use(cors({
-    origin: process.env.CLIENT_ORIGIN?.split(",") || "http://localhost:5173",
+    origin: (origin, cb) => {
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return cb(null, true);
+
+        // Allow any chrome-extension:// or moz-extension:// origin
+        // if (/^(chrome-extension|moz-extension):///.test(origin)) return cb(null, true);
+
+        // Allow configured origins
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+            return cb(new Error("CORS: origin not allowed — " + origin));
+    },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
+// Ensure preflight OPTIONS is handled for all routes
+app.options("*", cors());
 
 // ── Rate Limiting ─────────────────────────────────────
 const limiter = rateLimit({

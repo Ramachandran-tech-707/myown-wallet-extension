@@ -13,6 +13,7 @@ import Swap from "./pages/Swap";
 import Buy from "./pages/Buy";
 import ImportAccount from "./pages/ImportAccount";
 import AccountDetails from "./pages/AccountDetails";
+import ForgotPassword from "./pages/ForgotPassword";
 import Layout from "./components/Layout";
 
 import {
@@ -132,7 +133,7 @@ function App() {
     setCurrentWallet(null);
     setBalance(null);
     setTxData(null);
-    setStep("unlock");     // go back to onboarding (re-detect wallets on next boot)
+    setStep("onboarding");     // go back to onboarding (re-detect wallets on next boot)
   };
 
   // ── Loading ───────────────────────────────────────────
@@ -150,6 +151,18 @@ function App() {
       <>
         <div className="app-shell" style={{ justifyContent: "center" }}>
           <Onboarding setStep={setStep} onWalletCreated={handleWalletCreated} />
+        </div>
+        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      </>
+    );
+  }
+
+  // ── Forgot Password ──────────────────────────────────
+  if (step === "forgotPassword") {
+    return (
+      <>
+        <div className="app-shell" style={{ justifyContent: "center" }}>
+          <ForgotPassword setStep={setStep} />
         </div>
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       </>

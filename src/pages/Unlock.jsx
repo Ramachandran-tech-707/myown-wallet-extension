@@ -3,7 +3,6 @@ import { decryptWallet } from "../services/walletService";
 import { getWallets, getSelectedAccount } from "../services/storageService";
 import { toast } from "react-toastify";
 import { TailSpin } from "react-loader-spinner";
-import PasswordInput from "../components/PasswordInput";
 
 function Unlock({ setWallet, setStep }) {
     const [password, setPassword] = useState("");
@@ -24,7 +23,7 @@ function Unlock({ setWallet, setStep }) {
             setLoading(true);
             const selectedIndex = await getSelectedAccount();
             const walletData = wallets[selectedIndex] || wallets[0];
-            await decryptWallet(walletData.encryptedJson, password);
+            const decrypted = await decryptWallet(walletData.encryptedJson, password);
             setWallet(walletData);
             toast.success("Wallet unlocked!");
             setStep("dashboard");
@@ -53,11 +52,13 @@ function Unlock({ setWallet, setStep }) {
                 <div className="card">
                     <div className="form-group">
                         <label>Password</label>
-                        <PasswordInput
+                        <input
+                            type="password"
+                            className="form-control"
+                            placeholder="Enter your password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Enter your password"
                             autoFocus
                         />
                     </div>
@@ -67,7 +68,14 @@ function Unlock({ setWallet, setStep }) {
                     </button>
                 </div>
 
-                <div style={{ textAlign: "center", marginTop: "0.75rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem" }}>
+                    <button
+                        className="btn-ghost btn-sm"
+                        style={{ width: "auto", fontSize: "0.8rem", color: "var(--accent)", border: "none", background: "transparent" }}
+                        onClick={() => setStep("forgotPassword")}
+                    >
+                        Forgot password?
+                    </button>
                     <button
                         className="btn-ghost btn-sm"
                         style={{ width: "auto", fontSize: "0.8rem" }}
